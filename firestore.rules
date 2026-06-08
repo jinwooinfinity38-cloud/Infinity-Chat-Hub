@@ -1,0 +1,218 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Global Deny
+    // ===============================================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ===============================================================
+    // Shared Helpers
+    // ===============================================================
+    function isSignedIn() { return request.auth != null; }
+    function isVerified() { return isSignedIn() && request.auth.token.email_verified == true; }
+    function isId(id) { return id is string && id.size() <= 128; }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+    
+    // The Master of the House
+    function isRealOwner() {
+      return isSignedIn() && request.auth.token.email == "jinwooinfinity38@gmail.com";
+    }
+
+    function isAdmin() { 
+      return isRealOwner() || (
+        isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'owner']
+      );
+    }
+
+    function isStaff() {
+      return isRealOwner() || (
+        isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && (
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['owner', 'watcher', 'ruler', 'captain', 'moderator', 'admin', 'staff'] ||
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.rank in ['Watcher', 'Ruler', 'Captain', 'Moderator']
+        )
+      );
+    }
+
+    function isModerator() {
+      return isStaff() || (isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'moderator');
+    }
+
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+
+    // Bot Identity
+    function isBotId(id) { return id == 'bot-jin-uid'; }
+
+    // ===============================================================
+    // Validation Blueprints
+    // ===============================================================
+    
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'displayName', 'role']) &&
+             data.uid is string && data.uid.size() <= 128 &&
+             data.displayName is string && data.displayName.size() > 0 && data.displayName.size() < 50 &&
+             data.role in ['user', 'moderator', 'admin', 'bot', 'owner', 'watcher', 'ruler', 'captain', 'trusted', 'staff'] &&
+             (data.containsKey('isBot') ? data.isBot is bool : true) &&
+             (data.containsKey('level') ? data.level is number : true) &&
+             (data.containsKey('totalGameScore') ? data.totalGameScore is number : true) &&
+             (data.containsKey('bannerURL') ? data.bannerURL is string : true) &&
+             (data.containsKey('chatBackground') ? data.chatBackground is string : true) &&
+             (data.containsKey('chatBackgroundId') ? data.chatBackgroundId is string : true) &&
+             (data.containsKey('usernameColor') ? data.usernameColor is string : true) &&
+             (data.containsKey('usernameGlow') ? data.usernameGlow is bool : true) &&
+             (data.containsKey('messageColor') ? data.messageColor is string : true) &&
+             (data.containsKey('messageGlow') ? data.messageGlow is bool : true) &&
+             (data.containsKey('bubbleColor') ? data.bubbleColor is string : true) &&
+             (data.containsKey('rank') ? data.rank in ['User', 'E', 'D', 'C', 'B', 'A', 'S', 'X', 'OS', 'Watcher', 'Ruler', 'Captain', 'Moderator', 'Trusted'] : true);
+    }
+
+    function isValidReport(data) {
+      return data.keys().hasAll(['messageId', 'messageText', 'messageSenderId', 'messageSenderName', 'reporterId', 'reporterName', 'status', 'createdAt']) &&
+             data.messageId is string &&
+             data.messageText is string && data.messageText.size() <= 4000 &&
+             data.messageSenderId is string &&
+             data.messageSenderName is string &&
+             data.reporterId == request.auth.uid &&
+             data.reporterName is string &&
+             data.status in ['active', 'resolved'] &&
+             data.createdAt == request.time;
+    }
+
+    function isValidMessage(data) {
+      return isSignedIn();
+    }
+
+    function isValidNews(data) {
+      return data.keys().hasAll(['text', 'authorId', 'createdAt']) &&
+             data.text is string && data.text.size() > 0 &&
+             data.authorId == request.auth.uid &&
+             data.createdAt == request.time &&
+             (data.containsKey('authorName') ? (data.authorName == null || data.authorName is string) : true) &&
+             (data.containsKey('authorPhoto') ? (data.authorPhoto == null || data.authorPhoto is string) : true);
+    }
+
+    function isValidRoom(data) {
+      return data.keys().hasAll(['name', 'category']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.category is string;
+    }
+
+    // ===============================================================
+    // Collection Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      // Allow reading any profile
+      allow read: if isSignedIn();
+      
+      // List for RoomUsersPanel and Ranking Modal
+      allow list: if isSignedIn();
+
+      allow create: if isSignedIn() && (isOwner(userId) || isBotId(userId));
+      
+      allow update: if isSignedIn() && (
+        isBotId(userId) || 
+        isRealOwner() || 
+        (
+          (isOwner(userId) || isStaff()) && 
+          (!incoming().diff(existing()).affectedKeys().hasAny(['uid', 'role', 'isBot']) || isRealOwner()) &&
+          (
+            !incoming().diff(existing()).affectedKeys().hasAny(['rank']) || 
+            isOwner(userId) || 
+            (isStaff() && incoming().get('rank', 'User') in ['User', 'E', 'D', 'C', 'B', 'A', 'S', 'X', 'OS', 'Watcher', 'Ruler', 'Captain', 'Moderator', 'Trusted'])
+          )
+        )
+      );
+
+      match /notifications/{notifId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && incoming().createdAt == request.time;
+        allow update: if isOwner(userId) && incoming().diff(existing()).affectedKeys().hasOnly(['read']);
+        allow delete: if isOwner(userId);
+      }
+    }
+
+    match /rooms/{roomId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidRoom(incoming());
+      allow update: if isModerator() || isAdmin();
+      allow delete: if isAdmin();
+
+      match /messages/{messageId} {
+        allow read: if isSignedIn();
+        allow list: if isSignedIn(); 
+        allow create: if isSignedIn() && isValidMessage(incoming());
+        allow delete: if isAdmin() || isModerator() || (resource.data.senderId == request.auth.uid);
+      }
+    }
+
+    match /privateMessages/{chatId} {
+      allow read, list, write: if isSignedIn();
+      
+      match /messages/{messageId} {
+        allow read, list: if isSignedIn();
+        allow create: if isSignedIn() && incoming().createdAt == request.time;
+      }
+    }
+
+    match /forums/{postId} {
+      allow read: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && (resource.data.authorId == request.auth.uid || isAdmin());
+      allow delete: if isAdmin() || isModerator();
+
+      match /comments/{commentId} {
+        allow read: if isSignedIn();
+        allow list: if isSignedIn();
+        allow create: if isSignedIn() && incoming().authorId == request.auth.uid;
+        allow delete: if isAdmin() || isModerator() || resource.data.authorId == request.auth.uid;
+      }
+    }
+
+    match /posts/{postId} {
+      allow read: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isSignedIn() && incoming().authorId == request.auth.uid;
+      allow update: if isSignedIn() && (resource.data.authorId == request.auth.uid || isAdmin());
+      allow delete: if isAdmin() || isModerator() || resource.data.authorId == request.auth.uid;
+    }
+
+    match /news/{newsId} {
+      allow read: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if (isAdmin() || isModerator()) && isValidNews(incoming());
+      allow update: if (isAdmin() || isModerator()) && isValidNews(incoming());
+      allow delete: if isAdmin();
+    }
+
+    match /gameSessions/{sessionId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && (
+        // Terminal State Locking
+        existing().status != 'finished' && existing().status != 'expired'
+      );
+      allow delete: if isAdmin();
+    }
+
+    match /notifications/{notifId} {
+      allow read: if isSignedIn();
+      allow create: if isAdmin() || isModerator();
+    }
+
+    match /reports/{reportId} {
+      allow read: if isStaff();
+      allow list: if isStaff();
+      allow create: if isSignedIn() && isValidReport(incoming());
+      allow update: if isStaff() && (
+        incoming().diff(existing()).affectedKeys().hasOnly(['status', 'resolvedBy', 'resolvedAt'])
+      );
+      allow delete: if isStaff();
+    }
+  }
+}

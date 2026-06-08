@@ -1,0 +1,9 @@
+{
+  "name": "Infinity Chat",
+  "description": "A feature-rich social chat platform with rooms, private messaging, XP levels, and virtual currency.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ],
+  "majorCapabilities": []
+}

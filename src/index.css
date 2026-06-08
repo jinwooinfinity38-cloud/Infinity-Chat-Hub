@@ -1,0 +1,81 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-heading: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  
+  --color-tkc-bg: #0a0a0a;
+  --color-tkc-sidebar: #111111;
+  --color-tkc-card: #1a1a1a;
+  --color-tkc-accent: #7c3aed;
+  --color-tkc-gold: #fbbf24;
+  --color-tkc-ruby: #f43f5e;
+
+  --color-background: #0a0a0a;
+  --color-foreground: #f4f4f5;
+  --color-card: #1a1a1a;
+  --color-card-foreground: #f4f4f5;
+  --color-popover: #1a1a1a;
+  --color-popover-foreground: #f4f4f5;
+  --color-primary: #7c3aed;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #27272a;
+  --color-secondary-foreground: #f4f4f5;
+  --color-muted: #27272a;
+  --color-muted-foreground: #a1a1aa;
+  --color-accent: #27272a;
+  --color-accent-foreground: #f4f4f5;
+  --color-destructive: #ef4444;
+  --color-destructive-foreground: #f4f4f5;
+  --color-border: #27272a;
+  --color-input: #27272a;
+  --color-ring: #7c3aed;
+
+  --radius-lg: 0.75rem;
+  --radius-md: calc(0.75rem - 2px);
+  --radius-sm: calc(0.75rem - 4px);
+}
+
+@layer base {
+  * {
+    @apply border-zinc-800;
+  }
+  body {
+    @apply bg-tkc-bg text-zinc-100;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-zinc-800 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-zinc-700;
+}
+
+.chat-bubble-reply {
+  @apply bg-zinc-900/50 border-l-2 border-purple-500 p-2 rounded-lg mb-2 text-xs text-zinc-400;
+}
+
+.tkc-modal {
+  @apply bg-tkc-card border-zinc-800 rounded-2xl shadow-2xl;
+}
+
+.tkc-button-primary {
+  @apply bg-tkc-accent hover:bg-purple-500 text-white rounded-xl transition-all active:scale-95;
+}
+
+.tkc-input {
+  @apply bg-zinc-900 border-zinc-800 focus:border-tkc-accent rounded-xl text-sm;
+}

@@ -1,0 +1,259 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "bannerURL": { "type": "string" },
+        "chatBackground": { "type": "string" },
+        "chatBackgroundId": { "type": "string" },
+        "usernameColor": { "type": "string" },
+        "usernameGlow": { "type": "boolean" },
+        "messageColor": { "type": "string" },
+        "messageGlow": { "type": "boolean" },
+        "bubbleColor": { "type": "string" },
+        "bio": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "moderator", "admin", "owner", "watcher", "ruler", "captain", "trusted", "bot"] },
+        "xp": { "type": "number" },
+        "level": { "type": "number" },
+        "rubies": { "type": "number" },
+        "crystals": { "type": "number" },
+        "tokens": { "type": "number" },
+        "totalMessages": { "type": "number" },
+        "likes": { "type": "number" },
+        "giftsSent": { "type": "number" },
+        "giftsReceived": { "type": "number" },
+        "rank": { "type": "string", "enum": ["User", "E", "D", "C", "B", "A", "S", "X", "OS", "Watcher", "Ruler", "Captain", "Moderator", "Trusted"] },
+        "timeOnlineMinutes": { "type": "number" },
+        "dailyVisitStreak": { "type": "number" },
+        "lastVisitDate": { "type": "string" },
+        "totalGameScore": { "type": "number" },
+        "currentRoomId": { "type": "string" },
+        "isBot": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "lastActive": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "displayName", "role"]
+    },
+    "UserNotification": {
+      "title": "UserNotification",
+      "description": "Personal notification for a specific user",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "message": { "type": "string" },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["message", "createdAt"]
+    },
+    "Room": {
+      "title": "Room",
+      "description": "Chat room metadata",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "category": { "type": "string" },
+        "isPrivate": { "type": "boolean" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "category"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "A chat message in a room",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "text": { "type": "string" },
+        "senderId": { "type": "string" },
+        "senderName": { "type": "string" },
+        "senderPhoto": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "type": { "type": "string", "enum": ["text", "system"] }
+      },
+      "required": ["text", "senderId", "createdAt"]
+    },
+    "PrivateMessage": {
+      "title": "PrivateMessage",
+      "description": "A private message between two users",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "text": { "type": "string" },
+        "senderId": { "type": "string" },
+        "receiverId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "read": { "type": "boolean" }
+      },
+      "required": ["text", "senderId", "receiverId", "createdAt"]
+    },
+    "ForumPost": {
+      "title": "ForumPost",
+      "description": "A post in the community forum",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "category": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "commentCount": { "type": "number" }
+      },
+      "required": ["title", "content", "authorId", "createdAt"]
+    },
+    "ForumComment": {
+      "title": "ForumComment",
+      "description": "A comment on a forum post",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "content": { "type": "string" },
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["content", "authorId", "createdAt"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "System alerts and notifications",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "type": { "type": "string", "enum": ["all", "staff", "members", "users"] },
+        "senderId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "message", "type", "createdAt"]
+    },
+    "Post": {
+      "title": "Post",
+      "description": "A post on the Friends Wall",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "text": { "type": "string" },
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorPhoto": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "likes": { "type": "number" },
+        "commentsCount": { "type": "number" }
+      },
+      "required": ["text", "authorId", "createdAt"]
+    },
+    "NewsPost": {
+      "title": "NewsPost",
+      "description": "A post on the News Panel",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "text": { "type": "string" },
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorPhoto": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "likes": { "type": "number" },
+        "commentsCount": { "type": "number" }
+      },
+      "required": ["text", "authorId", "createdAt"]
+    },
+    "GameSession": {
+      "title": "GameSession",
+      "description": "A real-time game session between players",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "gameName": { "type": "string" },
+        "players": { "type": "array" },
+        "status": { "type": "string", "enum": ["waiting", "playing", "finished", "expired"] },
+        "gameState": { "type": "object" },
+        "winner": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "expiresAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["gameName", "players", "status", "createdAt"]
+    },
+    "Report": {
+      "title": "Report",
+      "description": "User reported messages",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "messageId": { "type": "string" },
+        "messageText": { "type": "string" },
+        "messageSenderId": { "type": "string" },
+        "messageSenderName": { "type": "string" },
+        "reporterId": { "type": "string" },
+        "reporterName": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "resolved"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "resolvedBy": { "type": "string" },
+        "resolvedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["messageId", "messageText", "reporterId", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/users/{userId}/notifications/{notificationId}": {
+      "schema": "UserNotification",
+      "description": "Private user notifications"
+    },
+    "/rooms/{roomId}": {
+      "schema": "Room",
+      "description": "Chat rooms"
+    },
+    "/rooms/{roomId}/messages/{messageId}": {
+      "schema": "Message",
+      "description": "Messages within a specific room"
+    },
+    "/privateMessages/{chatId}/messages/{messageId}": {
+      "schema": "PrivateMessage",
+      "description": "Private messages between users"
+    },
+    "/forums/{postId}": {
+      "schema": "ForumPost",
+      "description": "Forum posts"
+    },
+    "/forums/{postId}/comments/{commentId}": {
+      "schema": "ForumComment",
+      "description": "Comments on a forum post"
+    },
+    "/notifications/{notificationId}": {
+      "schema": "Notification",
+      "description": "Broadcasting notifications"
+    },
+    "/posts/{postId}": {
+      "schema": "Post",
+      "description": "Friends Wall posts"
+    },
+    "/news/{newsId}": {
+      "schema": "NewsPost",
+      "description": "News Panel posts"
+    },
+    "/gameSessions/{sessionId}": {
+      "schema": "GameSession",
+      "description": "Active game sessions"
+    },
+    "/reports/{reportId}": {
+      "schema": "Report",
+      "description": "User reported messages"
+    }
+  }
+}

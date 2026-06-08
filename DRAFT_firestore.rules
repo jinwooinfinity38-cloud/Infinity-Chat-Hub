@@ -1,0 +1,167 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Global Deny
+    // ===============================================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ===============================================================
+    // Shared Helpers
+    // ===============================================================
+    function isSignedIn() { return request.auth != null; }
+    function isVerified() { return isSignedIn() && request.auth.token.email_verified == true; }
+    function isId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+    function isAdmin() { 
+      return isSignedIn() && (
+        (request.auth.token.email == "jinwooinfinity38@gmail.com" && request.auth.token.email_verified == true) ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
+    }
+    function isModerator() {
+      return isAdmin() || (isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'moderator');
+    }
+
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+
+    // Bot Identity
+    function isBotId(id) { return id == 'bot-jin-uid'; }
+
+    // ===============================================================
+    // Validation Blueprints
+    // ===============================================================
+    
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'displayName', 'role']) &&
+             data.uid is string && data.uid.size() <= 128 &&
+             data.displayName is string && data.displayName.size() > 0 && data.displayName.size() < 50 &&
+             data.role in ['user', 'moderator', 'admin', 'bot'] &&
+             (data.containsKey('isBot') ? data.isBot is bool : true) &&
+             (data.containsKey('level') ? data.level is number : true) &&
+             (data.containsKey('rank') ? data.rank is string : true);
+    }
+
+    function isValidMessage(data) {
+      return data.keys().hasAll(['text', 'senderId', 'createdAt']) &&
+             data.text is string && data.text.size() > 0 && data.text.size() <= 2000 &&
+             data.senderId is string &&
+             (data.senderId == request.auth.uid || isBotId(data.senderId)) &&
+             data.createdAt == request.time;
+    }
+
+    function isValidRoom(data) {
+      return data.keys().hasAll(['name', 'category']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.category is string;
+    }
+
+    // ===============================================================
+    // Collection Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      // Allow reading any profile, but restrict PII if it existed (none yet in blueprint)
+      allow read: if isSignedIn();
+      
+      // List for RoomUsersPanel: must check isBot or match currentRoomId
+      allow list: if isSignedIn() && (resource.data.isBot == true || resource.data.currentRoomId != null);
+
+      allow create: if isSignedIn() && isId(userId) && (isOwner(userId) || isBotId(userId)) && isValidUser(incoming());
+      
+      allow update: if isSignedIn() && (isOwner(userId) || isAdmin()) && (
+        // Prevent changing immutable fields and sensitive roles
+        incoming().uid == existing().uid &&
+        (incoming().role == existing().role || isAdmin()) &&
+        (incoming().isBot == existing().isBot || isAdmin()) &&
+        // Named update patterns
+        (
+          // Pattern: Update Stats/Presence
+          incoming().diff(existing()).affectedKeys().hasOnly(['lastActive', 'currentRoomId', 'totalMessages', 'xp', 'level', 'dailyVisitStreak', 'lastVisitDate', 'timeOnlineMinutes']) ||
+          // Pattern: Update Profile
+          incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'bio', 'rank', 'lastActive']) ||
+          isAdmin()
+        )
+      );
+
+      match /notifications/{notifId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && incoming().createdAt == request.time;
+        allow update: if isOwner(userId) && incoming().diff(existing()).affectedKeys().hasOnly(['read']);
+        allow delete: if isOwner(userId);
+      }
+    }
+
+    match /rooms/{roomId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidRoom(incoming());
+      allow update: if isModerator() || isAdmin();
+      allow delete: if isAdmin();
+
+      match /messages/{messageId} {
+        allow read: if isSignedIn();
+        allow list: if isSignedIn(); // Queries are scoped to the room path
+        allow create: if isSignedIn() && isValidMessage(incoming()) && exists(/databases/$(database)/documents/rooms/$(roomId));
+        allow delete: if isAdmin() || isModerator() || (resource.data.senderId == request.auth.uid);
+      }
+    }
+
+    match /privateMessages/{chatId} {
+      // chatId typically contains both user IDs
+      allow read, write: if isSignedIn() && chatId.matches(".*" + request.auth.uid + ".*");
+      
+      match /messages/{messageId} {
+        allow read: if isSignedIn() && chatId.matches(".*" + request.auth.uid + ".*");
+        allow create: if isSignedIn() && chatId.matches(".*" + request.auth.uid + ".*") &&
+                        incoming().senderId == request.auth.uid && incoming().createdAt == request.time;
+      }
+    }
+
+    match /forums/{postId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && (resource.data.authorId == request.auth.uid || isAdmin());
+      allow delete: if isAdmin() || isModerator();
+
+      match /comments/{commentId} {
+        allow read: if isSignedIn();
+        allow create: if isSignedIn() && incoming().authorId == request.auth.uid;
+        allow delete: if isAdmin() || isModerator() || resource.data.authorId == request.auth.uid;
+      }
+    }
+
+    match /posts/{postId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && incoming().authorId == request.auth.uid;
+      allow update: if isSignedIn() && (resource.data.authorId == request.auth.uid || isAdmin());
+      allow delete: if isAdmin() || isModerator() || resource.data.authorId == request.auth.uid;
+    }
+
+    match /news/{newsId} {
+      allow read: if isSignedIn();
+      allow create: if isAdmin() || isModerator();
+      allow update: if isAdmin() || isModerator();
+      allow delete: if isAdmin();
+    }
+
+    match /gameSessions/{sessionId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && (
+        // Terminal State Locking
+        existing().status != 'finished' && existing().status != 'expired'
+      );
+      allow delete: if isAdmin();
+    }
+
+    match /notifications/{notifId} {
+      allow read: if isSignedIn();
+      allow create: if isAdmin() || isModerator();
+    }
+  }
+}
